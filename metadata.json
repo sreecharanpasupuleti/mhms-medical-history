@@ -1,0 +1,6 @@
+{
+  "name": "MHMS — Medical History Management System",
+  "description": "Role-based clinical records, appointments, allergies, prescriptions, and lab diagnostics management platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

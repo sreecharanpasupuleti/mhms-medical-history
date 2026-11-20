@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DOCTOR
+  PATIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+model User {
+  id           String     @id @default(cuid())
+  fullName     String
+  email        String     @unique
+  passwordHash String
+  role         UserRole   @default(PATIENT)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  patientProfile PatientProfile?
+  doctorProfile  DoctorProfile?
+
+  patientAppointments  Appointment[]   @relation("PatientAppointments")
+  doctorAppointments   Appointment[]   @relation("DoctorAppointments")
+  patientRecords       MedicalRecord[] @relation("PatientRecords")
+  doctorRecords        MedicalRecord[] @relation("DoctorRecords")
+  patientAllergies     Allergy[]       @relation("PatientAllergies")
+  doctorAllergies      Allergy[]       @relation("DoctorAllergies")
+  patientPrescriptions Prescription[]  @relation("PatientPrescriptions")
+  doctorPrescriptions  Prescription[]  @relation("DoctorPrescriptions")
+  patientLabReports    LabReport[]     @relation("PatientLabReports")
+  doctorLabReports     LabReport[]     @relation("DoctorLabReports")
+  uploadedFiles        UploadedFile[]  @relation("UploadedByUser")
+  patientFiles         UploadedFile[]  @relation("PatientFiles")
+
+  @@index([role])
+  @@index([status])
+}
+
+model PatientProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  dateOfBirth      String?
+  gender           String?
+  bloodGroup       String?
+  phone            String?
+  address          String?
+  emergencyContact String?
+  insuranceNumber  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DoctorProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  specialization  String
+  licenseNumber   String
+  department      String?
+  phone           String?
+  bio             String?
+  availability    String?
+  consultationFee Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  patientId       String
+  doctorId        String
+  appointmentDate String
+  appointmentTime String
+  reason          String
+  status          AppointmentStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  patient User @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, appointmentDate, appointmentTime])
+  @@index([patientId])
+  @@index([status])
+}
+
+model MedicalRecord {
+  id         String   @id @default(cuid())
+  patientId  String
+  doctorId   String
+  diagnosis  String
+  symptoms   String
+  treatment  String
+  notes      String?
+  recordDate String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  patient User @relation("PatientRecords", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User @relation("DoctorRecords", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([doctorId])
+}
+
+model Allergy {
+  id            String          @id @default(cuid())
+  patientId     String
+  doctorId      String?
+  allergyName   String
+  severity      AllergySeverity @default(MILD)
+  reaction      String?
+  notes         String?
+  diagnosedDate String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  patient User  @relation("PatientAllergies", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User? @relation("DoctorAllergies", fields: [doctorId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+}
+
+model Prescription {
+  id             String   @id @default(cuid())
+  patientId      String
+  doctorId       String
+  medicineName   String
+  dosage         String
+  frequency      String
+  duration       String
+  instructions   String?
+  prescribedDate String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  patient User @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([doctorId])
+}
+
+model LabReport {
+  id             String   @id @default(cuid())
+  patientId      String
+  doctorId       String
+  reportTitle    String
+  reportType     String
+  reportDate     String
+  notes          String?
+  fileUrl        String
+  fileName       String
+  fileType       String
+  fileSize       Int?
+  uploadedFileId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  patient      User          @relation("PatientLabReports", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor       User          @relation("DoctorLabReports", fields: [doctorId], references: [id], onDelete: Cascade)
+  uploadedFile UploadedFile? @relation(fields: [uploadedFileId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([doctorId])
+}
+
+model UploadedFile {
+  id           String   @id @default(cuid())
+  fileName     String
+  fileUrl      String
+  fileType     String
+  fileSize     Int
+  uploadedById String
+  patientId    String?
+  category     String   @default("LAB_REPORT")
+  createdAt    DateTime @default(now())
+
+  uploadedBy User        @relation("UploadedByUser", fields: [uploadedById], references: [id], onDelete: Cascade)
+  patient    User?       @relation("PatientFiles", fields: [patientId], references: [id], onDelete: SetNull)
+  labReports LabReport[]
+
+  @@index([uploadedById])
+  @@index([patientId])
+}
